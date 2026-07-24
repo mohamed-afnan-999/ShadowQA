@@ -1,0 +1,71 @@
+/* General styles for the app */
+.App {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background-color: #282c34; /* Dark grey background */
+  color: white;
+}
+
+/* Styles for the chat window */
+.chat-window {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Styles for individual messages */
+.message {
+  max-width: 60%;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+}
+
+/* Styles for user messages */
+.message.user {
+  align-self: flex-end;
+  background-color: #007bff; /* Blue for user messages */
+  color: white;
+}
+
+/* Styles for LLM messages */
+.message.llm {
+  align-self: flex-start;
+  background-color: #444; /* Darker grey for LLM messages */
+  color: white;
+}
+
+/* Styles for the chat input area */
+.chat-input {
+  display: flex;
+  padding: 20px;
+  border-top: 1px solid #444;
+}
+
+/* Styles for the text input field */
+.chat-input input {
+  flex-grow: 1;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #555;
+  background-color: #333;
+  color: white;
+}
+
+/* Styles for the send button */
+.chat-input button {
+  padding: 10px 20px;
+  margin-left: 10px;
+  border-radius: 5px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+.chat-input button:hover {
+  background-color: #0056b3;
+}
