@@ -5,8 +5,6 @@ import axios from 'axios';
 import ffmpeg from "fluent-ffmpeg";
 import { randomUUID } from "crypto";    // needed for temp mp3 filename
 import Groq from 'groq-sdk';
-import dotenv from 'dotenv';
-dotenv.config();
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
@@ -99,7 +97,8 @@ export const transcribeAudio = async (audioFilePath) => {
         let transcription = await groq.audio.transcriptions.create({
             file: audioFile,
             model: 'whisper-large-v3-turbo',
-            prompt: 'Interview transcript, recruitment, QA audit, candidate interaction.',
+            // this prompt gives whisper some vocabulary context to expect in the audio files
+            prompt: `Interview transcript for 'BiziBees'. Recruitment, BPO, customer support, human resources, candidate, salary, notice period, shift, voice process. Recruiter names include - Hajira, Ayesha`,
             response_format: 'verbose_json',     // for word-level timestamps
             timestamp_granularities: ['segment', 'word']
         });
