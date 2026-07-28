@@ -1,7 +1,4 @@
 // Tool 2
-import dotenv from 'dotenv';
-dotenv.config();
-
 import {z} from "zod";
 import Groq from 'groq-sdk';
 
