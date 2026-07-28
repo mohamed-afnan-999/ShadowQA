@@ -17,7 +17,7 @@ export const fetchHistoricalAuditTool = {
             const dbConnection = await connectToDatabase();
 
             // 2. target the specific DB collection (table)
-            const collection = db.collection('historical_audits');
+            const collection = dbConnection.collection('historical_audits');
 
             // 3. fetch all records / rows / 'documents' for the specified 'recruiterName'
             const query = { recruiter: { $regex: new RegExp(`^${recruiterName}$`, `i`) }};
@@ -41,7 +41,7 @@ export const fetchHistoricalAuditTool = {
                 content: [
                     {
                         type: 'text',
-                        historicalRecords: JSON.stringify(historicalAudits)
+                        text: JSON.stringify(historicalAudits)
                     }
                 ]
             };
