@@ -38,7 +38,12 @@ export const isolateInterviewSegmentTool = {
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are a sophisticated, logical audio editor. Your job is to analyze the provided raw transcript (which includes temporal metadata and segments/words) to understand the conversational flow and temporal gaps. Identify standard introductory phrases (e.g., 'Hi, this is...', 'am I speaking with...') as the definitive start marker of the interview, and conclusive phrases (e.g., 'Thank you for your time', 'I'll send an email shortly') as the termination point. Extract and return a clean, consolidated string representing only the formal interview interaction. Completely remove dialing artifacts, automated voicemails, casual pre-interview small talk, and post-call administrative noise."
+                        "content": `You are a sophisticated, logical audio editor. Your job is to analyze the provided raw transcript (which includes temporal metadata and segments/words) to understand the conversational flow and temporal gaps. Identify standard introductory phrases (e.g., 'Hi, this is...', 'am I speaking with...') as the definitive start marker of the interview, and conclusive phrases (e.g., 'Thank you for your time', 'I'll send an email shortly') as the termination point. Extract and return a clean, consolidated string representing only the formal interview interaction. Completely remove dialing artifacts, automated voicemails, casual pre-interview small talk, and post-call administrative noise.
+                        
+                                    OUTPUT INSTRUCTIONS:
+                                        You must output strictly in JSON format. The JSON object must contain exactly two keys:
+                                            - "isolationStatus": A string indicating the status of extraction (e.g., "Success", "No Interview Found").
+                                            - "isolatedTranscript": A string containing the cleaned and isolated interview text, strictly avoiding conversational metadata and dial-tones.`
                     },
                     {
                         "role": "user",
@@ -47,28 +52,7 @@ export const isolateInterviewSegmentTool = {
                 ],
 
                 // Force structured JSON output
-                response_format: {
-                    type: "json_schema",
-                    json_schema: {
-                        name: "isolated_transcript_schema",
-                        strict: true,
-                        schema: {
-                            type: "object",
-                            properties: {
-                                isolationStatus: {
-                                    type: "string",
-                                    description: "Status of extraction, e.g. Success or No Interview Found"
-                                },
-                                isolatedTranscript: {
-                                    type: "string",
-                                    description: "The cleaned and isolated interview transcript text, strictly avoiding conversational metadata and dial-tones"
-                                }
-                            },
-                            required: ["isolationStatus", "isolatedTranscript"],
-                            additionalProperties: false     // this key prevents the LLM from adding its own keys to the response
-                        }
-                    }
-                }
+                response_format: {type: "json_object"}
             });
 
             // parse the JSON response from Groq (LLM response)
