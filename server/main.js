@@ -1,14 +1,26 @@
-import express, {request, response} from 'express';
+import express from 'express';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { mcpServer } from './mcpServer.js';
 import cors from 'cors';
+import {z} from "zod";
+import {zodToJsonSchema} from "zod-to-json-schema";
+import {runFullAudioAuditTool} from "./Tools/run_full_audio_audit.js";
+import {fetchHistoricalAuditTool} from "./Tools/fetch_historical_audit.js";
+import Groq from 'groq-sdk';
 
 const app = express();
 let transport;
+const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// Middleware to enable connection to the React client (frontend) without Cross-Origin Resource Sharing (CORS) issues
+// Middleware
+
+// 1. Enable connection to the React client (frontend) without Cross-Origin Resource Sharing (CORS) issues
 app.use(cors({ origin: 'http://localhost:3000'}))
+// 2. Allow the incoming network requests to be parsed as JSON
+app.use(express.json())
 
+
+// GET / - returns status of the MCP server
 app.get('/', (request, response) => {
     response.json({
         status: 'online',
@@ -17,12 +29,14 @@ app.get('/', (request, response) => {
     });
 });
 
+// GET /sse - establish and connect to the SSE transport layer
 app.get('/sse', async (request, response) => {
     transport = new SSEServerTransport('/messages', response);
     await mcpServer.connect(transport);
     console.error("SSE connection established with client.");
 });
 
+// POST /messages - sends the messages (user-prompts) from frontend to backend (MCP Server) via SSE Transport layer
 app.post('/messages', async (request, response) => {
     if(!transport) {
         response.status(400).send('SSE connection not established yet');
@@ -31,7 +45,118 @@ app.post('/messages', async (request, response) => {
     await transport.handlePostMessage(request, response);
 });
 
-// 4. Start listening
+// POST /api/orchestrate
+app.post('/api/orchestrate', async (request, response) => {
+    // handle incoming POST network requests containing user prompts, possibly links to the audio file
+
+    // 1. get prompt
+    const { prompt } = request.body;
+    if(!prompt) {
+        return response.status(400).json({ error: "Prompt is required" });
+    }
+
+    // Helper function to format tools and strip out the offending "$schema" key causing runtime errors
+    const formatToolForGroq = (tool) => {
+        const jsonSchema = zodToJsonSchema(z.object(tool.schema));
+        delete jsonSchema.$schema; // Clean up the schema for Groq
+
+        return {
+            type: "function",
+            function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: jsonSchema
+            }
+        };
+    };
+
+    // 2. Construct the array of tools formatted strictly for Groq/OpenAI
+    const mcpTools = [
+        formatToolForGroq(runFullAudioAuditTool),
+        formatToolForGroq(fetchHistoricalAuditTool)
+    ];
+
+    // Create a map to easily look up the actual tool logic by name
+    const toolHandlers = {
+        [runFullAudioAuditTool.name]: runFullAudioAuditTool,
+        [fetchHistoricalAuditTool.name]: fetchHistoricalAuditTool
+    };
+
+    try {
+        // First LLM call
+        const messages = [
+            {
+                role: "system",
+                content: "You are an intelligent router for a QA auditing system. Use the provided tools to fetch data or run audits based on the user's request. If no tool is needed, respond conversationally."
+            },
+            {
+                role: "user",
+                content: prompt
+            }
+        ];
+
+        // 1. ADDED 'await' HERE
+        const llmResponse = await groq.chat.completions.create({
+            model: "llama-3.3-70b-versatile",
+            messages: messages,
+            tools: mcpTools,
+            tool_choice: "auto"
+        });
+
+        // 🚨 DEBUG: Let's see exactly what Groq handed back
+        console.log("RAW GROQ RESPONSE:\n", JSON.stringify(llmResponse, null, 2));
+
+        // Defensive check to prevent the server from crashing
+        if (!llmResponse.choices || llmResponse.choices.length === 0) {
+            console.error("Groq returned an unexpected payload format.");
+            return response.status(500).json({ error: "Received an empty or invalid response from Groq." });
+        }
+
+        // 2. FIXED PARSING LOGIC HERE
+        const responseMessage = llmResponse.choices[0].message;
+        const toolCalls = responseMessage.tool_calls;
+
+        if (toolCalls && toolCalls.length > 0) {
+            // LLM needs to use and execute an MCP tool
+            const toolCall = toolCalls[0];
+            const toolName = toolCall.function.name;
+            const toolArgs = JSON.parse(toolCall.function.arguments);
+
+            console.log(`\n🤖 Llama chose tool: ${toolName}`);
+            console.log(`📦 With arguments:`, toolArgs);
+
+            // ====== Execute the selected/called tool ======
+            const selectedTool = toolHandlers[toolName];
+
+            if(!selectedTool) {
+                return response.json({ error: `LLM requested unknown tool - ${toolName}` });
+            }
+
+            console.log("⏳ Executing tool handler...");
+            const toolResult = await selectedTool.handler(toolArgs);
+            console.log("✅ Tool execution complete!");
+
+            // Return the final result of the tool back to the React frontend
+            return response.json({
+                status: 'Success',
+                toolUsed: toolName,
+                result: toolResult
+            });
+        }
+        else {
+            // LLM will only return text responses
+            console.log("\n💬 Llama responded directly:", responseMessage.content);
+            return response.json({ status: "Direct response", text: responseMessage.content });
+        }
+    } catch (error) {
+        console.error("Orchestration error:", error);
+        return response.status(500).json({ error: "Failed to run orchestrator" });
+    }
+        // verify the LLM response before sending output message to React frontend
+
+})
+
+// Start listening
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
     console.error(`MCP Express Server running on http://localhost:${PORT}`);
