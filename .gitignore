@@ -1,5 +1,12 @@
+# Node modules and packages
 server/node_modules/
-.idea/
 client/node_modules/
-server/.env
 node_modules
+
+.idea/
+
+# Environment Variables
+server/.env
+
+# /build is the JSX compiled down to browser-compatible HTML/CSS/JS
+/client/build
