@@ -60,7 +60,7 @@ export async function runFullAudioAudit(audioFileURL, onProgress = () => {}) {
                 },
                 {
                     "role": "user",
-                    "content": rawTranscript
+                    "content": rawTranscriptString
                 }
             ],
 
