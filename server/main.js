@@ -1,9 +1,13 @@
 import express, {request, response} from 'express';
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { mcpServer } from './mcpServer.js';
+import cors from 'cors';
 
 const app = express();
 let transport;
+
+// Middleware to enable connection to the React client (frontend) without Cross-Origin Resource Sharing (CORS) issues
+app.use(cors({ origin: 'http://localhost:3000'}))
 
 app.get('/', (request, response) => {
     response.json({
