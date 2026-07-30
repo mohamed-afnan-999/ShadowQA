@@ -1,31 +1,39 @@
 import fs from 'fs';
 import Groq from 'groq-sdk';
 import { downloadAudio, optimizeAudioForWhisper, transcribeAudio } from './audioService.js';
+import {fetchAndDownloadAudioChunks} from "./audioFetcher.js";
+import {stitchAudioChunks} from "./audioStitcher.js";
 
 // Initialize Groq client
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 /**
  * Runs the complete Audio -> Isolate -> Audit pipeline sequentially.
- * @param {string} audioFileURL - The direct URL to the Google Drive audio file.
+ * @param {string} apiURL - The direct URL to comapny's internal API containing the links to the Google Drive audio files.
  * @param {function} onProgress - Optional callback to send real-time status updates to the frontend.
  */
-export async function runFullAudioAudit(audioFileURL, onProgress = () => {}) {
-    let targetDir = null;
+export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
+    let localFilePaths = [];
+    let masterAudioFile = null, targetFile = null;
 
     try {
         // ==========================================
         // STEP 1: DOWNLOAD & TRANSCRIBE
         // ==========================================
-        onProgress("Downloading audio file...");
-        const downloadResult = await downloadAudio(audioFileURL);
-        targetDir = downloadResult.targetDir;
 
-        if (!downloadResult.isDownloaded) {
-            throw new Error("Failed to download the audio file.");
+        // TODO: Download and Get local filepaths to the downloaded audio files
+        onProgress("Downloading audio file...");
+        localFilePaths = await fetchAndDownloadAudioChunks(apiURL);
+
+        // TODO: Stitch the audio files into one before transcription, isolation and auditing (TIA)
+        onProgress("Stitching the audio files chunks together...");
+        masterAudioFile = await stitchAudioChunks(localFilePaths);
+
+        if (!masterAudioFile) {
+            throw new Error("Failed to fetch the downloaded master audio file.");
         }
 
-        let targetFile = downloadResult.filePath;
+        targetFile = masterAudioFile;
         if (!targetFile.endsWith('.mp3')) {
             onProgress("Optimizing audio for Whisper...");
             targetFile = await optimizeAudioForWhisper(targetFile);
@@ -91,6 +99,7 @@ export async function runFullAudioAudit(audioFileURL, onProgress = () => {}) {
             messages: [
                 {
                     role: "system",
+                    // TODO: Make the QA Checklist configurable from the frontend and fetch the actual checklist from the DB
                     content: `You are an automated Quality Assurance (QA) Officer auditing a recruiter's interview transcript. 
 Your task is to systematically evaluate if the recruiter adhered to mandatory compliance guidelines.
 
@@ -137,13 +146,27 @@ Each object must have exactly the following keys:
             report: null
         };
     } finally {
-        // ALWAYS clean up temporary audio files to prevent hard drive bloat
-        if (targetDir) {
-            try {
-                await fs.promises.rm(targetDir, { recursive: true, force: true });
-            } catch (cleanupError) {
-                console.error(`Failed to cleanup temp directory: ${targetDir}`);
+        // ALWAYS clean up temporary audio chunks and master audio files created in this pipeline usage and not the directory altogether
+        try {
+            // Delete chunks
+            if(localFilePaths && localFilePaths.length > 0) {
+                localFilePaths.forEach( file => {
+                    if(fs.existsSync(file))
+                        fs.promises.unlink(file).catch(() => {});
+                } )
             }
+
+            // Delete master audio file (stitched chunks)
+            if(masterAudioFile && fs.existsSync(masterAudioFile)) {
+                fs.promises.unlink(masterAudioFile).catch(() => {});
+            }
+
+            // Delete the optimised file (if generated)
+            if(targetFile && fs.existsSync(targetFile) && targetFile !== masterAudioFile) {
+                fs.promises.unlink(targetFile).catch(() => {});
+            }
+        } catch (cleanupError) {
+            console.error(`Error cleaning up temporary files: ${cleanupError}`);
         }
     }
 }
