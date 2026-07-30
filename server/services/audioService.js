@@ -8,51 +8,6 @@ import Groq from 'groq-sdk';
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-export const downloadAudio = async (audioURL, destinationPath) => {
-    // helper function to download audio from the internal audio URLs
-
-    let tempDir = null, tempFilePath = null;
-    let isDownloaded = false;       // tracks the status of the file download
-
-    try {
-        // create a temp dir
-        tempDir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'extracted-audio-files-'));
-        // create temp file to store the audio file extracted
-        tempFilePath = destinationPath || path.join(tempDir, 'audio.mp3');
-
-        // create a writer that will write to the target file
-        const writer = fs.createWriteStream(tempFilePath);
-
-        // extract and download audio using 'axios'
-        const response = await axios.get(audioURL, {
-            responseType: 'stream'
-        });
-
-        // pipe the downloaded audio file data into the writer to write it to the temporary target file
-        response.data.pipe(writer);
-
-        await new Promise((resolve, reject) => {
-            writer.on('finish', resolve);
-            writer.on('error', reject);
-        });
-
-        isDownloaded = true;
-        console.error(`Successfully downloaded the audio recording to ${tempFilePath}`);
-    } catch (error) {
-        // log the error
-        console.error(`Failed to retrieve and download the audio recording: ${error}`);
-        isDownloaded = false;
-    }
-
-    // cleanup the temp directory after the transcription is complete
-
-    return {
-        filePath: tempFilePath,
-        isDownloaded: isDownloaded,
-        targetDir: tempDir
-    };
-}
-
 export const optimizeAudioForWhisper = async (inputFilePath) => {
     return new Promise((resolve, reject) => {
         if (!fs.existsSync(inputFilePath)) {
@@ -103,7 +58,7 @@ export const transcribeAudio = async (audioFilePath) => {
             timestamp_granularities: ['segment', 'word']
         });
 
-        console.error(`Transcription successful`);
+        console.log(`Transcription successful`);
         transcriptionResult = {
             transcribed: true,
             transcription: transcription
