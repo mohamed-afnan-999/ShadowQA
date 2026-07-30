@@ -33,7 +33,7 @@ app.get('/', (request, response) => {
 app.get('/sse', async (request, response) => {
     transport = new SSEServerTransport('/messages', response);
     await mcpServer.connect(transport);
-    console.error("SSE connection established with client.");
+    console.log("SSE connection established with client.\n");
 });
 
 // POST /messages - sends the messages (user-prompts) from frontend to backend (MCP Server) via SSE Transport layer
@@ -83,7 +83,7 @@ app.post('/api/orchestrate', async (request, response) => {
     };
 
     try {
-        // First LLM call
+        // 3. First LLM call to
         const messages = [
             {
                 role: "system",
@@ -95,7 +95,6 @@ app.post('/api/orchestrate', async (request, response) => {
             }
         ];
 
-        // 1. ADDED 'await' HERE
         const llmResponse = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             messages: messages,
@@ -112,7 +111,6 @@ app.post('/api/orchestrate', async (request, response) => {
             return response.status(500).json({ error: "Received an empty or invalid response from Groq." });
         }
 
-        // 2. FIXED PARSING LOGIC HERE
         const responseMessage = llmResponse.choices[0].message;
         const toolCalls = responseMessage.tool_calls;
 
@@ -132,15 +130,46 @@ app.post('/api/orchestrate', async (request, response) => {
                 return response.json({ error: `LLM requested unknown tool - ${toolName}` });
             }
 
-            console.log("⏳ Executing tool handler...");
+            console.log(`⏳ Executing tool ${toolName}...\n`);
             const toolResult = await selectedTool.handler(toolArgs);
-            console.log("✅ Tool execution complete!");
 
-            // Return the final result of the tool back to the React frontend
+            if(toolResult.isError) {
+                console.log("‼️Tool execution failed!\n")
+                return response.status(500).json({ error: toolResult.content[0]?.text });
+            }
+            console.log("✅ Tool execution complete!\n");
+
+            // 2nd LLM call to summarise a report (if tool execution was successful)
+            console.log("Synthesizing final report....\n");
+            // Add the LLM's tool call request
+            messages.push(responseMessage);
+            // Add the tool execution's actual output
+            messages.push({
+                role: 'tool',
+                tool_call_id: toolCall.id,
+                name: toolName,
+                content: JSON.stringify(toolResult)
+            });
+
+            // 2n LLM call with updated history
+            const finalResponse = await groq.chat.completions.create({
+                model: "llama-3.3-70b-versatile",
+                temperature: 0.1,
+                messages: messages
+                // Don't pass the tools list because here, we only want the summary of the audit report
+            })
+
+            const finalSummary = finalResponse.choices[0].message.content
+            if(!finalSummary) {
+                console.log()
+            }
+
+            // Return the final result of the tool back to the React frontend (raw JSON Data and English summary)
             return response.json({
                 status: 'Success',
                 toolUsed: toolName,
-                result: toolResult
+                summary: finalSummary,
+                rawData: toolResult
             });
         }
         else {
@@ -152,12 +181,10 @@ app.post('/api/orchestrate', async (request, response) => {
         console.error("Orchestration error:", error);
         return response.status(500).json({ error: "Failed to run orchestrator" });
     }
-        // verify the LLM response before sending output message to React frontend
-
-})
+});
 
 // Start listening
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.error(`MCP Express Server running on http://localhost:${PORT}`);
+    console.log(`MCP Express Server running on http://localhost:${PORT}`);
 });
