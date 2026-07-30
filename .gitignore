@@ -10,3 +10,9 @@ server/.env
 
 # /build is the JSX compiled down to browser-compatible HTML/CSS/JS
 /client/build
+
+# Temporary Downloaded Audio Chunks File Storage Location
+/server/temp_audio
+
+# Storage Location for Master Audio Clips (after stitching)
+/server/full_recordings
