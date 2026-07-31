@@ -11,7 +11,12 @@ export const fetchHistoricalAuditTool = {
     schema: {
         recruiterName: z.string().describe("The full name of the recruiter to look up in the database.")
     },
-    handler: async ({ recruiterName }) => {
+    handler: async (args) => {
+        const recruiterName = Object.values(args)[0];   // grab the recruiter name no matter what the LLM named the variable
+        if (!recruiterName || typeof recruiterName !== 'string') {
+            throw new Error(`The LLM failed to provide a valid recruiter name. It provided: ${JSON.stringify(recruiterName)}`);
+        }
+        
         try {
             // 1. connect to the DB and hold the active connection object
             const dbConnection = await connectToDatabase();
