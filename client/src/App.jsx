@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import axios from "axios";
+import ReactMarkdown from 'react-markdown';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -97,7 +98,7 @@ function App() {
         <div className="chat-window">
           {messages.map((message, index) => (
               <div key={index} className={`message ${message.sender}`}>
-                {message.text}
+                <ReactMarkdown>{message.text}</ReactMarkdown>
               </div>
           ))}
           <div ref={messagesEndRef} />
