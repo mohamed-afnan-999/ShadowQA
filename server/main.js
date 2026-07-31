@@ -8,6 +8,7 @@ import {zodToJsonSchema} from "zod-to-json-schema";
 import {runFullAudioAuditTool} from "./Tools/run_full_audio_audit.js";
 import {fetchHistoricalAuditTool} from "./Tools/fetch_historical_audit.js";
 import { pipelineProgress } from './services/progressEmitter.js';
+import {addQAChecklist, connectToDatabase, deleteQAChecklist} from "./services/dbService.js";
 
 const app = express();
 let transport;
@@ -202,6 +203,56 @@ app.get('/api/status', (request, response) => {
     request.on('close', () => {
         pipelineProgress.off('status', sendUpdate);
     });
+});
+
+// GET /api/qa-checklist - fetch QA Checklist for the React frontend
+app.get('/api/qa-checklist', async (request, response) => {
+    try {
+        const dbConnection = await connectToDatabase();
+        const qaChecklist = await fetchQAChecklist(dbConnection);
+        response.json(qaChecklist);
+    } catch (error) {
+        response.status(500).json({ error: "Failed to fetch QA checklist data." });
+    }
+});
+
+// POST /api/qa-checklist - add a new checklist item
+app.post('/api/qa-checklist', async (request, response) => {
+    try {
+        const dbConnection = await connectToDatabase();
+        // extract the new data to add from the network request
+        const newChecklistItem = request.body;
+        const result = await addQAChecklist(dbConnection, newChecklistItem);
+        response.json({ success: true, id: result.insertedId });
+    } catch (error) {
+        response.status(500).json({ error: "Failed to add new checklist criteria" });
+    }
+});
+
+// PUT /api/qa-checklist - update an existing checklist item
+app.post('/api/qa-checklist', async (request, response) => {
+    try {
+        const dbConnection = await connectToDatabase();
+        // extract the new data to add from the network request
+        const newChecklistItem = request.body;
+        const rowId = req.params.id;
+        await addQAChecklist(dbConnection, rowId, newChecklistItem);
+        response.json({ success: true });
+    } catch (error) {
+        response.status(500).json({ error: "Failed to update selected checklist criteria" });
+    }
+});
+
+// DELETE /api/qa-checklist - delete a checklist item
+app.post('/api/qa-checklist', async (request, response) => {
+    try {
+        const dbConnection = await connectToDatabase();
+        const rowId = req.params.id;
+        await deleteQAChecklist(dbConnection, rowId);
+        response.json({ success: true });
+    } catch (error) {
+        response.status(500).json({ error: "Failed to delete selected checklist criteria" });
+    }
 });
 
 // Start listening
