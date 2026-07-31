@@ -1,25 +1,31 @@
 import {z} from "zod";
 import {runFullAudioAudit} from "../services/auditPipeline.js";
-import {viewToDownloadDriveLink} from "../services/googleFileURLService.js";
+import { pipelineProgress } from "../services/progressEmitter.js";
 
 export const runFullAudioAuditTool = {
     name: "run_full_audio_audit",
-    description:'Runs the complete QA audit pipeline on a recruiter\'s audio file. It automatically transcribes the audio, isolates the interview segment, and evaluates it against standard compliance checklists. Use this whenever the user asks to audit, review, or check a new audio recording.',
+    description:'Runs the complete QA audit pipeline. It accepts a direct API link containing audio chunks, downloads them, stitches them, transcribes them, and evaluates the interview against standard compliance checklists.',
     schema: {
-        audioFileURL: z.string().describe("The direct URL path to the Google Drive audio file.")
+        companyApiURL: z.string().describe("The direct URL or API link provided by the user.")
     },
     handler: async (args) => {
-        let audioFileURL = Object.values(args)[0]; // grab the 1st value in the object no matter the key name (audioFileURL OR audio_link OR url OR audio_url)
+        // 🚨 Defensive debug: Let's log exactly what the LLM tried to pass
+        console.log("Raw args received in tool handler:", args);
 
-        if(!audioFileURL || typeof audioFileURL !== "string") {
-            throw new Error("The LLM failed to provide a valid audio URL.");
+        let companyApiURL = Object.values(args)[0];
+
+        if (!companyApiURL || typeof companyApiURL !== 'string') {
+            throw new Error(`The LLM failed to provide a valid API URL. It provided: ${JSON.stringify(companyApiURL)}`);
         }
 
-        // convert Google Drive 'view' link to 'direct download' link
-        audioFileURL = viewToDownloadDriveLink(audioFileURL);
-
         try {
-            const auditResult = await runFullAudioAudit(audioFileURL);
+            // ==== EMIT AUDIT PIPELINE STATUS ====
+            const logProgress = async (statusText) => {
+                console.log(`[PIPELINE STATUS]: ${statusText}`);
+                // Broadcast the update
+                pipelineProgress.emit('status', statusText);
+            }
+            const auditResult = await runFullAudioAudit(companyApiURL, logProgress);
 
             if (!auditResult.isSuccess) {
                 return {
@@ -46,7 +52,7 @@ export const runFullAudioAuditTool = {
                         }, null, 2)
                     }
                 ]
-            };
+            }
         } catch (error) {
             console.error(`Macro-Tool Error: ${error.message}`);
             return {
