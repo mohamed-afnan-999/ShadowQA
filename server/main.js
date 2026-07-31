@@ -84,11 +84,11 @@ app.post('/api/orchestrate', async (request, response) => {
     };
 
     try {
-        // 3. First LLM call to
+        // 3. First LLM call to pass userPrompt to the LLM
         const messages = [
             {
                 role: "system",
-                content: "You are an intelligent router for a QA auditing system. Use the provided tools to fetch data or run audits based on the user's request. If no tool is needed, respond conversationally."
+                content: "You are an intelligent router for a QA auditing system. Use the provided tools to fetch data or run audits based on the user's request. When summarizing data from a tool, you must use clean Markdown formatting. Use bolding for key terms, line breaks between distinct records, and bullet points for readability. Never output a dense wall of text."
             },
             {
                 role: "user",
