@@ -3,10 +3,11 @@ import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { mcpServer } from './mcpServer.js';
 import cors from 'cors';
 import {z} from "zod";
+import Groq from 'groq-sdk';
 import {zodToJsonSchema} from "zod-to-json-schema";
 import {runFullAudioAuditTool} from "./Tools/run_full_audio_audit.js";
 import {fetchHistoricalAuditTool} from "./Tools/fetch_historical_audit.js";
-import Groq from 'groq-sdk';
+import { pipelineProgress } from './services/progressEmitter.js';
 
 const app = express();
 let transport;
@@ -181,6 +182,26 @@ app.post('/api/orchestrate', async (request, response) => {
         console.error("Orchestration error:", error);
         return response.status(500).json({ error: "Failed to run orchestrator" });
     }
+});
+
+// Dedicated SSE endpoint for pipeline status updates
+app.get('/api/status', (request, response) => {
+    response.setHeader('Content-Type', 'text/event-stream');
+    response.setHeader('Cache-Control', 'no-cache');
+    response.setHeader('Connection', 'keep-alive');
+
+    // Function to send the text to the frontend
+    const sendUpdate = (text) => {
+        response.write(`data: ${text}\n\n`);
+    };
+
+    // Listen for broadcasts and send them to the client
+    pipelineProgress.on('status', sendUpdate);
+
+    // Clean up the listener if the client disconnects
+    request.on('close', () => {
+        pipelineProgress.off('status', sendUpdate);
+    });
 });
 
 // Start listening
