@@ -139,9 +139,10 @@ You must output strictly in JSON format. The JSON object must contain two keys:
 
         try {
             const db = await connectToDatabase();
+            // create a new collection (like a DB schema)
             const collection = db.collection('historical_audits');
 
-            // DB records (like an SQL table) definition
+            // DB records (like an SQL table) definition within the new collection
             const auditRecord = {
                 recruiter: auditData.recruiter_name || "Unknown",
                 audit_date: new Date(),
