@@ -12,10 +12,12 @@ function App() {
   // 2. Create the ref and the auto-scroll effect
   const messagesEndRef = useRef(null);
 
+  // auto-scroll to bottom effect
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // MCP Server Connection Status Effect
   useEffect(() => {
     setMcpStatus('connecting');
     // 1. Open the SSE connection to the backend
@@ -38,6 +40,21 @@ function App() {
     return () => eventSource.close();
   }, []);
 
+  // Listen for real-time pipeline status updates
+  useEffect(() => {
+    const statusSource = new EventSource('http://localhost:3001/api/status');
+
+    statusSource.onmessage = (event) => {
+      // Add the status update to the chat as a system message
+      setMessages(prevMessages => [
+        ...prevMessages,
+        { text: `⏳ ${event.data}`, sender: 'system' }
+      ]);
+    };
+
+    return () => statusSource.close();
+  }, []);
+
   const handleSend = async () => {
     if (!input.trim())  return;
 
@@ -53,10 +70,19 @@ function App() {
       const response = await axios.post("http://localhost:3001/api/orchestrate", { prompt: userMessage });
       const data = response.data;
 
-      setMessages(prevMessages => [...prevMessages, {text: JSON.stringify(data, null, 2), sender: 'llm'}]);
+      if(!data) {
+        setMessages(prevMessages => [...prevMessages, { text: `LLM response is empty. Retry....`}]);
+      }
+      else {
+        // If it's a tool execution that generated a summary, print the clean summary.
+        // If it's just a normal conversation, print the text.
+        // Fallback to JSON only if something unexpected happens.
+        const outputText = data.summary || data.text || JSON.stringify(data, null, 2);
+        setMessages(prevMessages => [...prevMessages, { text: outputText, sender: 'llm' }]);
+      }
 
     } catch(error) {
-      setMessages(prevMessages => [...prevMessages, {text: `Error connecting to the server:\n ${error.message}`, sender: 'llm'}]);
+      setMessages(prevMessages => [...prevMessages, { text: `Error connecting to the server:\n\t ${error.message}`, sender: 'llm' }]);
     }
   }
 
