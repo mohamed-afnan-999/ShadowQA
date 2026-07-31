@@ -3,7 +3,7 @@ import Groq from 'groq-sdk';
 import { optimizeAudioForWhisper, transcribeAudio } from './audioService.js';
 import { fetchAndDownloadAudioChunks } from "./audioFetcher.js";
 import { stitchAudioChunks } from "./audioStitcher.js";
-import { connectToDatabase } from "./dbService.js";
+import {connectToDatabase, fetchQAChecklist} from "./dbService.js";
 
 // Initialize Groq client
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -94,6 +94,14 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
         // ==========================================
         onProgress("Running QA compliance audit...");
 
+        const dbConnection = await connectToDatabase();
+        const rawChecklist = await fetchQAChecklist(dbConnection);  // get this checklist to pass to the LLM for auditing purposes
+
+        // Map the array into a clean numbered list for Llama
+        const formattedChecklistPrompt = rawChecklist
+            .map((item, index) => `${index + 1}. ${item.criteria}`)
+            .join('\n');
+
         const auditResponse = await groq.chat.completions.create({
             model: "llama-3.3-70b-versatile",
             temperature: 0.1, // low temp for analytical evaluation
@@ -107,10 +115,8 @@ Your task is to systematically evaluate if the recruiter adhered to mandatory co
 CRITICAL CONSTRAINT - ONE-SIDED TRANSCRIPT: 
 The transcript may only contain the recruiter's voice. You must infer the candidate's answers based on the recruiter's context, acknowledgments, or conversational flow. For example, if the recruiter asks about work authorization and then responds with "Great, that works perfectly," you must deduce that the candidate provided a satisfactory answer, and grade the checkpoint as a "PASS".
 
-Standard Agency QA Checklist:   
-1. Legal Work Authorization: Did the recruiter verify if the candidate is legally authorized to work?
-2. Salary Range: Did the recruiter explicitly state the salary range for the role?
-3. Notice Period: Did the recruiter confirm the candidate's notice period or availability to start?
+QA Checklist:   
+${formattedChecklistPrompt}
 
 OUTPUT INSTRUCTIONS:
 You must output strictly in JSON format. The JSON object must contain two keys:
@@ -139,10 +145,10 @@ You must output strictly in JSON format. The JSON object must contain two keys:
 
         try {
             const db = await connectToDatabase();
-            // create a new collection (like a DB schema)
+            // create a new collection (like a DB table)
             const collection = db.collection('historical_audits');
 
-            // DB records (like an SQL table) definition within the new collection
+            // DB entry (like an SQL table's row) definition within the new collection (table)
             const auditRecord = {
                 recruiter: auditData.recruiter_name || "Unknown",
                 audit_date: new Date(),
