@@ -1,8 +1,9 @@
 import fs from 'fs';
 import Groq from 'groq-sdk';
-import { downloadAudio, optimizeAudioForWhisper, transcribeAudio } from './audioService.js';
-import {fetchAndDownloadAudioChunks} from "./audioFetcher.js";
-import {stitchAudioChunks} from "./audioStitcher.js";
+import { optimizeAudioForWhisper, transcribeAudio } from './audioService.js';
+import { fetchAndDownloadAudioChunks } from "./audioFetcher.js";
+import { stitchAudioChunks } from "./audioStitcher.js";
+import { connectToDatabase } from "./dbService.js";
 
 // Initialize Groq client
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
@@ -112,11 +113,12 @@ Standard Agency QA Checklist:
 3. Notice Period: Did the recruiter confirm the candidate's notice period or availability to start?
 
 OUTPUT INSTRUCTIONS:
-You must output strictly in JSON format. The JSON object must contain a single key "audit_report" which is an array of objects. 
-Each object must have exactly the following keys:
-- "checkpoint": The name of the checkpoint (e.g., "Work Authorization", "Salary Range", "Notice Period").
+You must output strictly in JSON format. The JSON object must contain two keys:
+1. "recruiter_name": The name of the recruiter conducting the interview (infer from introductions, e.g., 'Hi, this is Hajira'). If unknown, output 'Unknown'.
+2. "audit_report": An array of objects. Each object must have exactly the following keys:
+- "checkpoint": The name of the checkpoint.
 - "status": Strictly use "PASS", "FAIL", or "NOT_APPLICABLE".
-- "reasoning": A brief explanation justifying the status based on evidence (or inferred evidence) from the transcript.`
+- "reasoning": A brief explanation justifying the status.`
                 },
                 {
                     role: "user",
@@ -130,6 +132,33 @@ Each object must have exactly the following keys:
 
         onProgress("Audit complete!");
 
+        // ==========================================
+        // STEP 4: SAVE TO DATABASE
+        // ==========================================
+        onProgress("Saving audit results to database...");
+
+        try {
+            const db = await connectToDatabase();
+            const collection = db.collection('historical_audits');
+
+            // DB records (like an SQL table) definition
+            const auditRecord = {
+                recruiter: auditData.recruiter_name || "Unknown",
+                audit_date: new Date(),
+                source_api: apiURL,
+                overall_score: auditData.audit_report.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
+                report: auditData.audit_report,
+                transcript: isolationData.isolatedTranscript
+            };
+
+            await collection.insertOne(auditRecord);
+            onProgress("Audit saved to database successfully!");
+        } catch (dbError) {
+            console.error("Failed to save to database:", dbError);
+            onProgress("Warning: Audit completed but failed to save to database.");
+            // We don't throw here because the audit itself still succeeded
+        }
+
         // Return the final packaged payload
         return {
             isSuccess: true,
@@ -137,7 +166,6 @@ Each object must have exactly the following keys:
             isolatedTranscript: isolationData.isolatedTranscript,
             report: auditData.audit_report
         };
-
     } catch (error) {
         console.error("Audit Pipeline Error:", error);
         return {
