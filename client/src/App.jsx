@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 import axios from "axios";
 import ReactMarkdown from 'react-markdown';
+import QAChecklistAdmin from './QAChecklistAdmin';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -94,6 +95,9 @@ function App() {
           <span className={`status-dot ${mcpStatus}`}></span>
           MCP Server: {mcpStatus}
         </div>
+
+        {/* The New Admin Panel */}
+        <QAChecklistAdmin />
 
         <div className="chat-window">
           {messages.map((message, index) => (
