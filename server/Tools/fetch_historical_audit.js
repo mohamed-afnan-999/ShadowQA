@@ -12,7 +12,7 @@ export const fetchHistoricalAuditTool = {
         endDate: z.string().optional().describe("Optional end date to filter records until (Format: YYYY-MM-DD).")
     },
     handler: async (args) => {
-        const { recruiterName, startDate, endDate } = args;   // grab the recruiter name no matter what the LLM named the variable
+        const [recruiterName, startDate, endDate] = Object.values(args);   // grab the recruiter name no matter what the LLM named the variable
 
         if (!recruiterName || typeof recruiterName !== 'string') {
             throw new Error(`The LLM failed to provide a valid recruiter name. It provided: ${JSON.stringify(recruiterName)}`);
