@@ -95,7 +95,7 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
         onProgress("Running QA compliance audit...");
 
         const dbConnection = await connectToDatabase();
-        const rawChecklist = await fetchQAChecklist(dbConnection);  // get this checklist to pass to the LLM for auditing purposes
+            const rawChecklist = await fetchQAChecklist(dbConnection);  // get this checklist to pass to the LLM for auditing purposes
 
         // Map the array into a clean numbered list for Llama
         const formattedChecklistPrompt = rawChecklist
@@ -109,6 +109,7 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
                 {
                     role: "system",
                     // TODO: Make the QA Checklist configurable from the frontend and fetch the actual checklist from the DB
+                    // TODO: Make the response contain the final summary of the entire past data for a specific recruiter
                     content: `You are an automated Quality Assurance (QA) Officer auditing a recruiter's interview transcript. 
 Your task is to systematically evaluate if the recruiter adhered to mandatory compliance guidelines.
 
@@ -124,7 +125,8 @@ You must output strictly in JSON format. The JSON object must contain two keys:
 2. "audit_report": An array of objects. Each object must have exactly the following keys:
 - "checkpoint": The name of the checkpoint.
 - "status": Strictly use "PASS", "FAIL", or "NOT_APPLICABLE".
-- "reasoning": A brief explanation justifying the status.`
+- "reasoning": A brief explanation justifying the status.
+3. "report_sumary": The summary of the recruiter's compliance with the checklist and performance.`
                 },
                 {
                     role: "user",
