@@ -1,10 +1,10 @@
 /* General styles for the app */
 .App {
-  display: flex;
-  flex-direction: column;
-  height: 100vh;
-  background-color: #282c34; /* Dark grey background */
-  color: white;
+display: flex;
+flex-direction: column;
+height: 100vh;
+background-color: #282c34; /* Dark grey background */
+color: white;
 }
 
 /* Styles for the chat window */
@@ -27,16 +27,16 @@
 
 /* Styles for user messages */
 .message.user {
-  align-self: flex-end;
-  background-color: #007bff; /* Blue for user messages */
-  color: white;
+align-self: flex-end;
+background-color: #007bff; /* Blue for user messages */
+color: white;
 }
 
 /* Styles for LLM messages */
 .message.llm {
-  align-self: flex-start;
-  background-color: #444; /* Darker grey for LLM messages */
-  color: white;
+align-self: flex-start;
+background-color: #444; /* Darker grey for LLM messages */
+color: white;
 }
 
 /* Styles for the chat input area */
@@ -44,6 +44,7 @@
   display: flex;
   padding: 20px;
   border-top: 1px solid #444;
+  margin-left: 2rem;
 }
 
 /* Styles for the text input field */
@@ -109,12 +110,73 @@
   to { opacity: 1; }
 }
 
-.admin-panel {
+/* Sidebar Wrapper */
+.admin-sidebar-wrapper {
+position: fixed;
+top: 0;
+left: -350px; /* Hides the panel off-screen */
+width: 380px;
+height: 100vh;
+border-radius: 10px;
+background: #ffc107;
+color: black;
+font: bold 14px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif;
+border-right: 2px solid #ddd;
+box-shadow: 4px 0 10px rgba(0,0,0,0.1);
+transition: left 0.3s ease-in-out;
+z-index: 100; /* Ensures it slides OVER the chat window */
+
+/* Flex properties added for strict height constraint */
+box-sizing: border-box;
+display: flex;
+flex-direction: column;
+}
+
+/* The hover tab that sticks out */
+.admin-sidebar-wrapper::after {
+  content: "⚙️";
+  position: absolute;
   background: #f8f9fa;
+  padding: 1rem;
+  border: 2px solid #ddd;
+  border-left: none;
+  border-radius: 0 8px 8px 0;
+  cursor: pointer;
+  font-weight: bold;
+  box-shadow: 4px 0 5px rgba(0,0,0,0.1);
+  box-sizing: border-box;
+}
+
+/* Slide in when hovered */
+.admin-sidebar-wrapper:hover {
+  left: 0;
+}
+
+/* Inner panel formatting */
+.admin-panel {
   padding: 20px;
-  border-radius: 8px;
-  margin-bottom: 20px;
-  border: 1px solid #ddd;
+  height: 100%;
+
+  /* Enables internal scrolling */
+  flex-grow: 1;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* Custom Scrollbar specifically for the Admin Panel */
+.admin-panel::-webkit-scrollbar {
+  width: 8px;
+}
+.admin-panel::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+.admin-panel::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+.admin-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 .add-criteria-form {
