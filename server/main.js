@@ -1,26 +1,32 @@
 import express from 'express';
-import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { mcpServer } from './mcpServer.js';
 import cors from 'cors';
-import {z} from "zod";
+import { z } from "zod";
 import Groq from 'groq-sdk';
-import {zodToJsonSchema} from "zod-to-json-schema";
-import {runFullAudioAuditTool} from "./Tools/run_full_audio_audit.js";
-import {fetchHistoricalAuditTool} from "./Tools/fetch_historical_audit.js";
+import { zodToJsonSchema } from "zod-to-json-schema";
+import { runFullAudioAuditTool } from "./Tools/run_full_audio_audit.js";
+import { fetchHistoricalAuditTool } from "./Tools/fetch_historical_audit.js";
 import { pipelineProgress } from './services/progressEmitter.js';
-import {addQAChecklist, connectToDatabase, deleteQAChecklist} from "./services/dbService.js";
+import { addQAChecklist, connectToDatabase, deleteQAChecklist, fetchQAChecklist, updateQAChecklist } from "./services/dbService.js";
 
 const app = express();
 let transport;
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-// Middleware
+// ===== Middleware =====
 
 // 1. Enable connection to the React client (frontend) without Cross-Origin Resource Sharing (CORS) issues
-app.use(cors({ origin: 'http://localhost:3000'}))
+app.use(cors({
+    origin: 'http://localhost:3000',
+    methods: ['GET', 'POST', 'DELETE', 'PUT']
+}))
 // 2. Allow the incoming network requests to be parsed as JSON
 app.use(express.json())
 
+// =========================
+
+// ===== SERVER ENDPOINTS =====
 
 // GET / - returns status of the MCP server
 app.get('/', (request, response) => {
@@ -31,21 +37,20 @@ app.get('/', (request, response) => {
     });
 });
 
-// GET /sse - establish and connect to the SSE transport layer
-app.get('/sse', async (request, response) => {
-    transport = new SSEServerTransport('/messages', response);
-    await mcpServer.connect(transport);
-    console.log("SSE connection established with client.\n");
-});
-
-// POST /messages - sends the messages (user-prompts) from frontend to backend (MCP Server) via SSE Transport layer
-app.post('/messages', async (request, response) => {
-    if(!transport) {
-        response.status(400).send('SSE connection not established yet');
-        return;
+// POST /mcp- Stateless, Unified HTTP Streaming Transport endpoint defined for extrernal AI agentic tools
+app.post('/mcp', async (request, resposne) => {
+    try {
+        // define the streamable HTTP transport layer
+        const transport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: () => randomUUID(),
+        });
+        await mcpServer.connect(transport);     // connect the MCP server to this transport layer (establish a communication line)
+        await transport.handleRequest(request, response, request.body);
+    } catch (error) {
+        console.error("MCP Transport Error:", error);
+        response.status(500).send("Transport execution failed");
     }
-    await transport.handlePostMessage(request, response);
-});
+})
 
 // POST /api/orchestrate
 app.post('/api/orchestrate', async (request, response) => {
@@ -104,9 +109,6 @@ app.post('/api/orchestrate', async (request, response) => {
             tool_choice: "auto"
         });
 
-        // 🚨 DEBUG: Let's see exactly what Groq handed back
-        console.log("RAW GROQ RESPONSE:\n", JSON.stringify(llmResponse, null, 2));
-
         // Defensive check to prevent the server from crashing
         if (!llmResponse.choices || llmResponse.choices.length === 0) {
             console.error("Groq returned an unexpected payload format.");
@@ -157,7 +159,13 @@ app.post('/api/orchestrate', async (request, response) => {
             const finalResponse = await groq.chat.completions.create({
                 model: "llama-3.3-70b-versatile",
                 temperature: 0.1,
-                messages: messages
+                messages: [
+                    ...messages,
+                    {
+                        role: 'system',
+                        content: "Summarize the audit report provided in the tool output. Start with an executive summary of the compliance status (PASS/FAIL). Then, list each checkpoint with its status (PASS/FAIL) and the reasoning. Ensure the output is formatted in clean Markdown with bullet points."
+                    }
+                ]
                 // Don't pass the tools list because here, we only want the summary of the audit report
             })
 
@@ -205,13 +213,19 @@ app.get('/api/status', (request, response) => {
     });
 });
 
-// GET /api/qa-checklist - fetch QA Checklist for the React frontend
+// ==============
+// DB CRUD ROUTES
+// ==============
+
+// GET /api/qa-checklist - fetch QA Checklist
 app.get('/api/qa-checklist', async (request, response) => {
     try {
         const dbConnection = await connectToDatabase();
         const qaChecklist = await fetchQAChecklist(dbConnection);
+        console.log(`📦 DB Fetch Success: Retrieved ${qaChecklist.length} checklist items.`); // 🚨 ADDED LOGGING
         response.json(qaChecklist);
     } catch (error) {
+        console.error("❌ Error fetching checklist from DB:", error);
         response.status(500).json({ error: "Failed to fetch QA checklist data." });
     }
 });
@@ -230,13 +244,13 @@ app.post('/api/qa-checklist', async (request, response) => {
 });
 
 // PUT /api/qa-checklist - update an existing checklist item
-app.post('/api/qa-checklist', async (request, response) => {
+app.put('/api/qa-checklist/:id', async (request, response) => {
     try {
         const dbConnection = await connectToDatabase();
         // extract the new data to add from the network request
         const newChecklistItem = request.body;
-        const rowId = req.params.id;
-        await addQAChecklist(dbConnection, rowId, newChecklistItem);
+        const rowId = request.params.id;
+        await updateQAChecklist(dbConnection, rowId, newChecklistItem);
         response.json({ success: true });
     } catch (error) {
         response.status(500).json({ error: "Failed to update selected checklist criteria" });
@@ -244,10 +258,10 @@ app.post('/api/qa-checklist', async (request, response) => {
 });
 
 // DELETE /api/qa-checklist - delete a checklist item
-app.post('/api/qa-checklist', async (request, response) => {
+app.delete('/api/qa-checklist/:id', async (request, response) => {
     try {
         const dbConnection = await connectToDatabase();
-        const rowId = req.params.id;
+        const rowId = request.params.id;
         await deleteQAChecklist(dbConnection, rowId);
         response.json({ success: true });
     } catch (error) {
