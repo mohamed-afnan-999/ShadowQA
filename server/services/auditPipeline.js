@@ -3,14 +3,25 @@ import Groq from 'groq-sdk';
 import { optimizeAudioForWhisper, transcribeAudio } from './audioService.js';
 import { fetchAndDownloadAudioChunks } from "./audioFetcher.js";
 import { stitchAudioChunks } from "./audioStitcher.js";
-import {connectToDatabase, fetchQAChecklist} from "./dbService.js";
+import { connectToDatabase, fetchQAChecklist } from "./dbService.js";
 
 // Initialize Groq client
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
+// Helper function to strip down markdown syntax from LLM responses and isolate JSON
+const sanitizeJSONString = (rawString) => {
+    // This Regular Expression looks for the first '{' or '[' and the last '}' or ']'
+    // It extracts ONLY the JSON structure, ignoring any conversational text or markdown code blocks (```json) surrounding it.
+    const match = rawString.match(/\{[\s\S]*\}|\[[\s\S]*\]/);
+    if (match) {
+        return match[0];
+    }
+    return rawString; // Fallback: return raw string if no JSON brackets are found
+};
+
 /**
  * Runs the complete Audio -> Isolate -> Audit pipeline sequentially.
- * @param {string} apiURL - The direct URL to comapny's internal API containing the links to the Google Drive audio files.
+ * @param {string} apiURL - The direct URL to company's internal API containing the links to the Google Drive audio files.
  * @param {function} onProgress - Optional callback to send real-time status updates to the frontend.
  */
 export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
@@ -22,11 +33,9 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
         // STEP 1: DOWNLOAD & TRANSCRIBE
         // ==========================================
 
-        // TODO: Download and Get local filepaths to the downloaded audio files
         onProgress("Downloading audio file...");
         localFilePaths = await fetchAndDownloadAudioChunks(apiURL);
 
-        // TODO: Stitch the audio files into one before transcription, isolation and auditing (TIA)
         onProgress("Stitching the audio files chunks together...");
         masterAudioFile = await stitchAudioChunks(localFilePaths);
 
@@ -34,14 +43,13 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
             throw new Error("Failed to fetch the downloaded master audio file.");
         }
 
-        targetFile = masterAudioFile;
-        if (!targetFile.endsWith('.mp3')) {
+        if (!masterAudioFile.endsWith('.mp3')) {
             onProgress("Optimizing audio for Whisper...");
-            targetFile = await optimizeAudioForWhisper(targetFile);
+            targetFile = await optimizeAudioForWhisper(masterAudioFile);
         }
 
         onProgress("Transcribing audio with Whisper-AI...");
-        const { transcribed, transcription } = await transcribeAudio(targetFile);
+        const { transcribed, transcription } = await transcribeAudio(masterAudioFile);
 
         if (!transcribed || !transcription) {
             throw new Error("Transcription failed to generate text.");
@@ -77,8 +85,10 @@ export async function runFullAudioAudit(apiURL, onProgress = () => {}) {
             response_format: {type: "json_object"}
         });
 
-        // parse the JSON response from Groq (LLM response)
-        const isolationData = JSON.parse(isolationResponse.choices[0].message.content);
+        // Sanitise LLM response to get JSON and then parse JSON output
+        const rawIsolationString = isolationResponse.choices[0].message.content;
+        const sanitisedJSONString = sanitizeJSONString(rawIsolationString);
+        const isolationData = JSON.parse(sanitisedJSONString);
 
         // If the LLM determines it was just a voicemail or empty call, stop early
         if (isolationData.isolationStatus !== "Success" || !isolationData.isolatedTranscript) {
@@ -136,7 +146,10 @@ You must output strictly in JSON format. The JSON object must contain two keys:
             response_format: { type: "json_object" }
         });
 
-        const auditData = JSON.parse(auditResponse.choices[0].message.content);
+        // sanitise audit data to get raw JSON output from (if any) markdown formatting, then parse the JSON data
+        const rawAuditData = auditResponse.choices[0].message.content;
+        const cleanedAuditData = sanitisedJSONString(rawAuditData)
+        const auditData = JSON.parse(cleanedAuditData);
 
         onProgress("Audit complete!");
 
