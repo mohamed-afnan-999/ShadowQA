@@ -10,6 +10,7 @@ function App() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [mcpStatus, setMcpStatus] = useState('offline');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // 2. Create the ref and the auto-scroll effect
   const messagesEndRef = useRef(null);
@@ -45,15 +46,15 @@ function App() {
   }, []);
 
   const handleSend = async () => {
-    if (!input.trim())  return;
+    if (!input.trim() || isProcessing)  return;
 
     const userMessage = input;
 
     // add the new message to the previous messages from the chat between LLM and user
     setMessages(prevMessages => [...prevMessages, { text: userMessage, sender: 'user' }]);
     setInput('');
+    setIsProcessing(true);    // lock the UI to prevent entering new requests while another is already running
 
-    // TODO: Get actual final LLM response and stream status messages during the task execution like: 'Transcribing Audio....', 'Retreiving Past Audits for ......', etc
     try {
       // send a POST /api/orchestrate request to the server -> receive a response -> extract the data (LLM response)
       const response = await axios.post("http://localhost:3001/api/orchestrate", { prompt: userMessage });
@@ -72,6 +73,8 @@ function App() {
 
     } catch(error) {
       setMessages(prevMessages => [...prevMessages, { text: `Error connecting to the server:\n\t ${error.message}`, sender: 'llm' }]);
+    } finally {
+      setIsProcessing(false); // unlock the UI when done or after it fails
     }
   }
 
@@ -100,10 +103,13 @@ function App() {
               type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSend()}
-              placeholder="Type your message..."
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder={ isProcessing? "Processing your request..." : "Type your message..." }
+              disabled={isProcessing}
           />
-          <button onClick={handleSend} disabled={mcpStatus !== 'online'}>Send</button>
+          <button onClick={handleSend} disabled={mcpStatus !== 'online' || isProcessing}>
+            { isProcessing? '⏳' : "Send" }
+          </button>
         </div>
       </div>
   )
