@@ -22,24 +22,11 @@ function App() {
   // MCP Server Connection Status Effect
   useEffect(() => {
     setMcpStatus('connecting');
-    // 1. Open the SSE connection to the backend
-    const eventSource = new EventSource('http://localhost:3001/sse');
 
-    eventSource.onopen = () => {
-      setMcpStatus('online');
-    };
-
-    eventSource.onerror = () => {
-      setMcpStatus('offline');
-    };
-
-    // 2. Listen for the endpoint URL the MCP server gives us to send messages back to
-    eventSource.addEventListener('endpoint', (event) => {
-      console.error("MCP POST Endpoint established:", event.data);
-      // TODO: We will save this URL into state later to route our POST requests
-    });
-
-    return () => eventSource.close();
+    // Simply ping the backend health endpoint to check if it's online
+    axios.get('http://localhost:3001/')
+        .then(() => setMcpStatus('online'))
+        .catch(() => setMcpStatus('offline'));
   }, []);
 
   // Listen for real-time pipeline status updates
