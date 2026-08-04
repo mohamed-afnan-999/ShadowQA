@@ -168,7 +168,9 @@ You must output strictly in JSON format. The JSON object must contain two keys:
                 recruiter: auditData.recruiter_name || "Unknown",
                 audit_date: new Date(),
                 source_api: apiURL,
-                overall_score: auditData.audit_report.every(item => item.status === 'PASS') ? 'PASS' : 'FAIL',
+                overall_score: auditData.audit_report.every(item =>
+                    (item.status === 'PASS' || item.status === 'NOT_APPLICABLE')
+                ) ? 'PASS' : 'FAIL',
                 report: auditData.audit_report,
                 transcript: isolationData.isolatedTranscript
             };
