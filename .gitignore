@@ -13,6 +13,7 @@ server/.env
 
 # Temporary Downloaded Audio Chunks File Storage Location
 /server/temp_audio
+/temp_audio
 
 # Storage Location for Master Audio Clips (after stitching)
 /server/full_recordings
