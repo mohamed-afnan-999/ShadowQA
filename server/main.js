@@ -193,7 +193,7 @@ app.post('/api/orchestrate', async (request, response) => {
     }
 });
 
-// Dedicated SSE endpoint for pipeline status updates
+// Dedicated endpoint for pipeline status updates
 app.get('/api/status', (request, response) => {
     response.setHeader('Content-Type', 'text/event-stream');
     response.setHeader('Cache-Control', 'no-cache');
