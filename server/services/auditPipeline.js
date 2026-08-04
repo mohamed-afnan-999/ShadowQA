@@ -148,7 +148,7 @@ You must output strictly in JSON format. The JSON object must contain two keys:
 
         // sanitise audit data to get raw JSON output from (if any) markdown formatting, then parse the JSON data
         const rawAuditData = auditResponse.choices[0].message.content;
-        const cleanedAuditData = sanitisedJSONString(rawAuditData)
+        const cleanedAuditData = sanitizeJSONString(rawAuditData);
         const auditData = JSON.parse(cleanedAuditData);
 
         onProgress("Audit complete!");
