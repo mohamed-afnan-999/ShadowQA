@@ -51,7 +51,7 @@ export const fetchQAChecklist = async (dbConnection) => {
     }
 }
 
-export const addQAChecklist = async ({ dbConnection, checklistData }) => {
+export const addQAChecklist = async (dbConnection, checklistData) => {
     try {
         const targetCollection = dbConnection.collection('qa_checklist');
 
@@ -62,7 +62,7 @@ export const addQAChecklist = async ({ dbConnection, checklistData }) => {
     }
 }
 
-export const deleteQAChecklist = async ({ dbConnection, id }) => {
+export const deleteQAChecklist = async (dbConnection, id) => {
     try {
         const targetCollection = dbConnection.collection('qa_checklist');
 
@@ -74,7 +74,7 @@ export const deleteQAChecklist = async ({ dbConnection, id }) => {
     }
 }
 
-export const updateQAChecklist = async ({ dbConnection, id, updatedFields }) => {
+export const updateQAChecklist = async (dbConnection, id, updatedFields) => {
     // This helper function updates (add , modify, delete) all the QA Checklist criteria (defined by project manager) in the DB
     try {
         const targetCollection = dbConnection.collection('qa_checklist');
