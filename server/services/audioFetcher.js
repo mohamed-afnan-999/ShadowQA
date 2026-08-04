@@ -7,7 +7,8 @@ import { viewToDownloadDriveLink } from "./googleFileURLService.js";
 export const fetchAndDownloadAudioChunks = async (apiURL) => {
     try {
         // 1. get API response and verify the expected API response structure before proceeding (guardrail)
-        const response = await axios.get(apiURL);
+        // Added a 10-second timeout here as well, just in case the initial API is unresponsive.
+        const response = await axios.get(apiURL, { timeout: 10000 });
         const data = response.data;
 
         if(!data || !data.data || !data.success || !data.data[0] || !data.data[0].chunks) {
@@ -17,12 +18,12 @@ export const fetchAndDownloadAudioChunks = async (apiURL) => {
                 content: [
                     {
                         type: 'text',
-                        text: "Invalid API response structure - [audio clips unavailable, response empty, unknown response format]"
+                        text: "Invalid API response structure - [audio clips unavailable / response empty / unknown response format]"
                     }
                 ]
             }
         }
-        // Grab the chunks array ( contains audio clips' Google Drive links )
+        // Grab the chunks array ( contains audio clips' Google Drive links ) - inspect the API response to get the appropriate way to extract the audio chunks array
         const audioChunks = data.data[0].chunks;
 
         // 2. Create a temporary directory
@@ -48,14 +49,22 @@ export const fetchAndDownloadAudioChunks = async (apiURL) => {
                     const fileResponse = await axios({
                         method: "GET",
                         url: downloadURL,
-                        responseType: "stream"
-                    })
+                        responseType: "stream",
+                        timeout: 20000      // safeguard to timeout a failed get request to the audio-chunk url (Google Drive)
+                    }); // 20 seconds limit for each audio chunk to download, else all downloads will be failed and removed
 
                     fileResponse.data.pipe(fileWriter);
 
                     fileWriter.on("finish", () => resolve(fileName));
-                    fileWriter.on("error", reject);
+
+                    // In case the download stream breaks, this 'error' event listener will clean up partially downloaded files to prevent disk and RAM clogging
+                    fileWriter.on("error", err => {
+                        fs.unlink(fileName, () => {});      // cleanup the partially downloaded file
+                        reject(err);
+                    });
+
                 } catch (error) {
+                    // catch all AXIOS's timeout errors
                     reject(error);
                 }
             });
@@ -63,7 +72,7 @@ export const fetchAndDownloadAudioChunks = async (apiURL) => {
 
         console.log(`Downloading ${audioChunks.length} audio chunks in parallel....\n`);
 
-        // 4. Execute all the downloads in parallel using `Promise.all(promises)`
+        // 4. Execute all the downloads in parallel using `Promise.all(promises)` - if any download promise fails (due to timeout), Promise.all() will fail early and throw an error to the outer catch block
         const localFilePaths = await Promise.all(downloadPromises);
 
         console.log("All chunks downloaded successfully.");
