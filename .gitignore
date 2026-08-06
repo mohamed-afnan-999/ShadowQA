@@ -3,6 +3,7 @@ server/node_modules/
 client/node_modules/
 node_modules
 
+# IDE specific folder(s)
 .idea/
 
 # Environment Variables
