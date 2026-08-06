@@ -74,7 +74,7 @@ Before running the application, you must provision two free-tier accounts to ret
 1. **Clone the repository**
 
          git clone [https://github.com/your-username/ShadowQA.git](https://github.com/your-username/ShadowQA.git)
-         cd Auto-QA-Audit-MCP-Tool
+         cd ShadowQA
 
 2. **Configure Environment Variables**
 Copy the provided .env.example file in the server directory to a new file named .env:
