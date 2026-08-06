@@ -73,7 +73,7 @@ Before running the application, you must provision two free-tier accounts to ret
 ## 🚀 Setup & Installation
 1. **Clone the repository**
 
-         git clone [https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git](https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git)
+         git clone [https://github.com/your-username/ShadowQA.git](https://github.com/your-username/ShadowQA.git)
          cd Auto-QA-Audit-MCP-Tool
 
 2. **Configure Environment Variables**
