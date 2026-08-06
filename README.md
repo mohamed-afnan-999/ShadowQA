@@ -51,6 +51,25 @@ Auto-QA-Audit-MCP-Tool/
 * **MongoDB Atlas Account**: A free M0 cluster is sufficient.
 * **Groq API Key**: Free tier access for Whisper and Llama models.
 
+## 🔑 External Account Setup
+
+Before running the application, you must provision two free-tier accounts to retrieve your API keys:
+
+1. **MongoDB Atlas (Database)**:
+
+   * Go to MongoDB Atlas and create a free account.
+   * Deploy a free M0 Cluster.
+   * Under "Database Access", create a user and password.
+   * Under "Network Access", allow access from anywhere (0.0.0.0/0) for testing.
+   * Click "Connect" -> "Drivers" -> "Node.js" and copy the connection string. Replace <password> with your user password. This is your MONGODB_URI.
+
+
+2. **Groq (AI Inference)**:
+
+   * Go to GroqCloud and create a free account.
+   * Navigate to "API Keys" in the left sidebar.
+   * Click "Create API Key" and copy the generated string. This is your GROQ_API_KEY.
+
 ## 🚀 Setup & Installation
 1. **Clone the repository**
 
