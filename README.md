@@ -2,19 +2,19 @@
 
 ShadowQA is an automated Quality Assurance pipeline built to evaluate recruiter performance and regulatory compliance through advanced AI audio transcription and semantic analysis.
 
-This system utilizes the **Model Context Protocol (MCP)** to expose sophisticated audio-processing and database-querying tools to external AI agents, utilizing Groq's high-speed LPU inference engine and MongoDB Atlas for zero-cost, scalable execution[cite: 2].
+This system utilizes the **Model Context Protocol (MCP)** to expose sophisticated audio-processing and database-querying tools to external AI agents, utilizing Groq's high-speed LPU inference engine and MongoDB Atlas for zero-cost, scalable execution.
 
 ## 🧠 Core Architecture & Capabilities
 
-The architecture resolves the complex challenge of "semantic shadow reconstruction"[cite: 2]—auditing strictly one-sided audio recordings by inferring candidate responses from recruiter affirmations using advanced Prompt Engineering.
+The architecture resolves the complex challenge of "semantic shadow reconstruction"—auditing strictly one-sided audio recordings by inferring candidate responses from recruiter affirmations using advanced Prompt Engineering.
 
 *   **Frontend (Client):** A React.js Single Page Application (SPA) providing a conversational interface, a dynamic QA Compliance Checklist manager, and real-time SSE (Server-Sent Events) pipeline telemetry.
 *   **Backend (Server):** An Express.js / Node.js backend executing a multi-stage pipeline:
     *   **Concurrent Audio Ingestion:** Downloads partitioned audio chunks from Google Drive APIs.
     *   **Media Optimization:** Uses FFmpeg to stitch chunks, downsample to 16kHz mono, and compress to 64kbps MP3 for optimal transcription.
-    *   **Speech-to-Text:** Leverages Groq's `whisper-large-v3-turbo` model for high-velocity transcription[cite: 2].
-    *   **Semantic Auditing:** Uses Meta's `llama-3.3-70b-versatile` model to isolate formal interview segments and strictly grade the interaction against a dynamic, MongoDB-backed checklist[cite: 2].
-    *   **Stateless MCP Integration:** Implements `StreamableHTTPServerTransport` to securely expose the audit pipeline and historical database querying as tools to AI orchestration agents[cite: 2].
+    *   **Speech-to-Text:** Leverages Groq's `whisper-large-v3-turbo` model for high-velocity transcription.
+    *   **Semantic Auditing:** Uses Meta's `llama-3.3-70b-versatile` model to isolate formal interview segments and strictly grade the interaction against a dynamic, MongoDB-backed checklist.
+    *   **Stateless MCP Integration:** Implements `StreamableHTTPServerTransport` to securely expose the audit pipeline and historical database querying as tools to AI orchestration agents.
 
 ## 📂 Project Structure
 
@@ -73,33 +73,25 @@ Before running the application, you must provision two free-tier accounts to ret
 ## 🚀 Setup & Installation
 1. **Clone the repository**
 
-        Bash
-        
-            git clone [https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git](https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git)
-            cd Auto-QA-Audit-MCP-Tool
+         git clone [https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git](https://github.com/your-username/Auto-QA-Audit-MCP-Tool.git)
+         cd Auto-QA-Audit-MCP-Tool
 
 2. **Configure Environment Variables**
 Copy the provided .env.example file in the server directory to a new file named .env:
 
-        Bash
-
-            cd server
-            cp ../.env.example .env
+         cd server
+         cp ../.env.example .env
 
     Populate the .env file with your actual API keys:
 
-        Code Snippet
-
-            GROQ_API_KEY=gsk_your_actual_api_key_here
-            MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/
+         GROQ_API_KEY=gsk_your_actual_api_key_here
+         MONGODB_URI=mongodb+srv://<username>:<password>@cluster.mongodb.net/
 
 3. **Install Backend Dependencies & Start Server**
 
-        Bash
-
-            # Assuming you are still in the /server directory
-            npm install
-            node main.js
+         # Assuming you are still in the /server directory
+         npm install
+         node main.js
    
     The backend will boot on http://localhost:3001.
 
@@ -108,11 +100,9 @@ Copy the provided .env.example file in the server directory to a new file named 
 
     Open a new terminal window
     
-        Bash
-
-            cd client
-            npm install
-            npm start
+         cd client
+         npm install
+         npm start
 
     The React client will boot on http://localhost:3000.
 
@@ -125,13 +115,13 @@ Once both servers are running, access the React UI and try the following End-to-
 #### Prompt:  
     Run a full QA audit on this audio file: [Insert Google Drive API Link]
 
-#### **Expected Behavior:** 
-    The UI will lock, real-time SSE progress indicators will appear, and the AI will output a Markdown-formatted pass/fail compliance summary.
+#### **Expected Behavior:**  
+The UI will lock, real-time SSE progress indicators will appear, and the AI will output a Markdown-formatted pass/fail compliance summary.
 
 ### **Fetch Historical Data:**
 
 #### Prompt: 
     Fetch the historical audit data for [Insert Recruiter Name]
 
-#### Expected Behavior:
-    The orchestrator uses the MCP tool to query MongoDB and generates a performance summary based on past audit scores.
+#### Expected Behavior: 
+The orchestrator uses the MCP tool to query MongoDB and generates a performance summary based on past audit scores.
