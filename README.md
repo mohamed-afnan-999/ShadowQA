@@ -15,6 +15,7 @@ The architecture resolves the complex challenge of "semantic shadow reconstructi
     *   **Speech-to-Text:** Leverages Groq's `whisper-large-v3-turbo` model for high-velocity transcription.
     *   **Semantic Auditing:** Uses Meta's `llama-3.3-70b-versatile` model to isolate formal interview segments and strictly grade the interaction against a dynamic, MongoDB-backed checklist.
     *   **Stateless MCP Integration:** Implements `StreamableHTTPServerTransport` to securely expose the audit pipeline and historical database querying as tools to AI orchestration agents.
+    *   **Dynamic Rule Engine:** A full-stack React and MongoDB interface allows managers to add, edit, or delete QA compliance criteria on the fly. These rules are instantly and dynamically injected into the LLM's prompt context, allowing the system to adapt to new company policies without touching the underlying codebase.
 
 ## 📂 Project Structure
 
@@ -91,7 +92,7 @@ Copy the provided .env.example file in the server directory to a new file named 
 
          # Assuming you are still in the /server directory
          npm install
-         node main.js
+         node --env-file=.env main.js
    
     The backend will boot on http://localhost:3001.
 
@@ -125,3 +126,11 @@ The UI will lock, real-time SSE progress indicators will appear, and the AI will
 
 #### Expected Behavior: 
 The orchestrator uses the MCP tool to query MongoDB and generates a performance summary based on past audit scores.
+
+### Manage QA Criteria (Dynamic Prompting):
+
+#### Action:
+Use the yellow "⚙️ Checklist Manager" sidebar on the left side of the UI. Add a new rule like "**_Did the recruiter ask for a counter-offer?_**"
+
+#### Expected Behavior: 
+The new rule saves to MongoDB instantly. The very next time you run an audio audit, the LLM will automatically grade the conversation against this newly added compliance rule.
