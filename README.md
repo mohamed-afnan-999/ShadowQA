@@ -1,6 +1,6 @@
-# Auto QA Audit MCP Tool
+# ShadowQA
 
-An automated Quality Assurance (QA) pipeline built to evaluate recruiter performance and regulatory compliance through advanced AI audio transcription and semantic analysis.
+ShadowQA is an automated Quality Assurance pipeline built to evaluate recruiter performance and regulatory compliance through advanced AI audio transcription and semantic analysis.
 
 This system utilizes the **Model Context Protocol (MCP)** to expose sophisticated audio-processing and database-querying tools to external AI agents, utilizing Groq's high-speed LPU inference engine and MongoDB Atlas for zero-cost, scalable execution[cite: 2].
 
